@@ -42,4 +42,6 @@ the current index, incrementing it afterwards. This has the benefit of also mean
 
 ## Does it actually work?
 
-That's a better question! While my thoughts were that in theory it would average around 11-12bits a triangle, the Stanford Armadillo mesh optimised with Tom Forsyth's vertex cache optimisation algorithm, with 345944 triangles compresses the index buffer down to 563122 bytes, which is more like 13 and the Stanford Bunny is 12.85bits or so. This is not anywhere near the state of the art in terms of compression (which get down to less than a bit), but with the code posted here the Armadillo compresses in 18.5 milliseconds decompresses in 6.6 milliseconds on average on my system. The Stanford bunny is more like 1.4 milliseconds to decompress, relatively.
+That's a better question! While my thoughts were that in theory it would average around 11-12bits a triangle, the Stanford Armadillo mesh (optimised with Tom Forsyth's vertex cache optimisation algorithm), with 345944 triangles, compresses the index buffer down to 563122 bytes, which is more like 13 and the Stanford Bunny is 12.85bits or so. This is not anywhere near the state of the art in terms of compression (which get down to less than a bit), but that isn't the goal.
+
+Performance wise, with the code posted here, the Armadillo compresses in 18.5 milliseconds and decompresses in 6.6 milliseconds on average on my system. The Stanford bunny is more like 1.4 milliseconds to decompress, relatively.
