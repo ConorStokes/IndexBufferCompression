@@ -12,18 +12,18 @@ The inspiration was a mix of Fabian Giesen's Simple loss-less index buffer compr
 the higher compression algorithms that make use of shared edges and re-order triangles. The idea was that there is probably a middle ground between them.
 
 The basic goals were:
->* Maintain the ordering of triangles, exploiting vertex cache optimal ordering.
->* Exploit recent triangle connectivity.
->* Make it fast, especially for decompression, without the need to maintain large extra data structures, like winged edge.
->* Make it simple enough to be easily understandable. 
+* Maintain the ordering of triangles, exploiting vertex cache optimal ordering.
+* Exploit recent triangle connectivity.
+* Make it fast, especially for decompression, without the need to maintain large extra data structures, like winged edge.
+* Make it simple enough to be easily understandable. 
 
 The vertex cache optimisation means that there will be quite a few vertices and edges shared between the next triangle in the list and the previous. We exploit this by maintaining two relatively small fixed size FIFOs, an edge FIFO and a vertex FIFO (not unlike the vertex cache itself, except we store recent indices).
 
 The compression relies on 4 codes: 
->1. A _new vertex_ code, for vertices that have not yet been seen. 
->2. A _cached edge_ code, for edges that have been seen recently. This code is followed by a relative index back into the edge FIFO.
->3. A _cached vertex_ code, for vertices that have been seen recently. This code is followed by a relative index back into the vertex FIFO.
->4. A _free vertex_ code, for vertices that have been seen, but not recently. This code is followed by a variable length integer encoding of the index relative to the most recent new vertex.
+1. A _new vertex_ code, for vertices that have not yet been seen. 
+2. A _cached edge_ code, for edges that have been seen recently. This code is followed by a relative index back into the edge FIFO.
+3. A _cached vertex_ code, for vertices that have been seen recently. This code is followed by a relative index back into the vertex FIFO.
+4. A _free vertex_ code, for vertices that have been seen, but not recently. This code is followed by a variable length integer encoding of the index relative to the most recent new vertex.
 
 Triangles can either consist of two codes, a cached edge followed by one of the vertex codes, or of 3 of the vertex codes. The most common codes in an optimised mesh are generally the cached edge and new vertex codes.
 
