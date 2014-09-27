@@ -20,6 +20,7 @@ The basic goals were:
 The vertex cache optimisation means that there will be quite a few vertices and edges shared between the next triangle in the list and the previous. We exploit this by maintaining two relatively small fixed size FIFOs, an edge FIFO and a vertex FIFO (not unlike the vertex cache itself, except we store recent indices).
 
 The compression relies on 4 codes: 
+
 1. A _new vertex_ code, for vertices that have not yet been seen. 
 
 2. A _cached edge_ code, for edges that have been seen recently. This code is followed by a relative index back into the edge FIFO.
