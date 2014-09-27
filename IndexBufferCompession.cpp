@@ -25,6 +25,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "IndexBufferCompression.h"
 #include "WriteBitstream.h"
 #include "IndexCompressionConstants.h"
+#include <assert.h>
 
 #ifdef _MSC_VER
 #define IBC_INLINE __forceinline
@@ -60,7 +61,6 @@ static IBC_INLINE void OutputVertex( uint32_t vertex,
 	else
 	{
 		int32_t lowestVertexCursor = verticesRead >= VERTEX_FIFO_SIZE ? verticesRead - VERTEX_FIFO_SIZE : 0;
-		bool    foundCached        = false;
 
 		// Probe backwards in the vertex FIFO for a cached vertex
 		for ( int32_t vertexCursor = verticesRead - 1; vertexCursor >= lowestVertexCursor; --vertexCursor )
@@ -82,22 +82,16 @@ static IBC_INLINE void OutputVertex( uint32_t vertex,
 		uint32_t vertexOutput = ( newVertexCount - 1 ) - vertexRemap[ vertex ];
 
 		// v-int encode the free vertex index.
-		while ( true )
+		do
 		{
 			uint32_t lower7 = vertexOutput & 0x7F;
 
 			vertexOutput >>= 7;
 
-			if ( vertexOutput > 0 )
-			{
-				output.Write( lower7 | 0x80, 8 );
-			}
-			else
-			{
-				output.Write( lower7, 8 );
-				break;
-			}
-		}
+			output.Write( lower7 | ( vertexOutput > 0 ? 0x80 : 0 ), 8 );
+
+		} while ( vertexOutput > 0 );
+
 
 		// free vertices go back into the vertex cache.
 		vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = vertex;
@@ -122,9 +116,11 @@ void CompressIndexBuffer( const uint32_t* triangles,
 	uint32_t        newVertices    = 0;
 	const uint32_t* triangleEnd    = triangles + ( triangleCount * 3 );
 
+	assert( vertexCount < 0xFFFFFFFF );
+
 	uint32_t*       vertexRemapEnd = vertexRemap + vertexCount;
 
-	// clear the vertex remapping to "not found" value of 0xFFFFFFFF
+	// clear the vertex remapping to "not found" value of 0xFFFFFFFF - dirty, but low overhead.
 	for ( auto remappedVertex = vertexRemap; remappedVertex < vertexRemapEnd; ++remappedVertex )
 	{
 		*remappedVertex = VERTEX_NOT_MAPPED;

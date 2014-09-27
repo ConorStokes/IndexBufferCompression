@@ -32,13 +32,14 @@ class WriteBitstream;
 
 // Compress an index buffer, writing the results out to a bitstream and providing a vertex remapping (which will be in pre-transform cache optimised
 // order.
+//
 // Parameters: 
 //     [in]  triangles      - A typical triangle list index buffer (3 indices to vertices per triangle).
 //     [in]  triangle count - The number of triangles to process.
 //     [out] vertexRemap    - This will be populated with re-mappings that map old vertices to new vertices,
 //                            where indexing with the old vertex index will get you the new one. 
 //                            It should be allocated as a with at least vertexCount entries.
-//     [in]  vertexCount    - The number of vertices in the mesh.
+//     [in] vertexCount     - The number of vertices in the mesh. This should be less than 0xFFFFFFFF/2^32 - 1.
 //     [in] output          - The stream that the compressed data will be written to. Note that we will not flush/finish the stream
 //                            in case something else is going to be written after, so WriteBitstream::Finish will need to be called after this.
 void CompressIndexBuffer( const uint32_t* triangles, uint32_t triangleCount, uint32_t* vertexRemap, uint32_t vertexCount, WriteBitstream& output );

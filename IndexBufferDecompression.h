@@ -30,6 +30,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class ReadBitstream;
 
+// Compress an index buffer, writing the results out to a bitstream and providing a vertex remapping (which will be in pre-transform cache optimised
+// order.
+// Parameters: 
+//     [out] triangles      - Triangle list index buffer (3 indices to vertices per triangle), output from the decompression.
+//     [in]  triangle count - The number of triangles to decompress.
+//     [in]  input          - The bit stream that the compressed data will be read from.
 void DecompressIndexBuffer( uint32_t* triangles, uint32_t triangleCount, ReadBitstream& input );
 
 #endif // -- INDEX_BUFFER_DECOMPRESSION_H__
