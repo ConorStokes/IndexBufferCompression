@@ -12,9 +12,13 @@ The inspiration was a mix of Fabian Giesen's Simple loss-less index buffer compr
 the higher compression algorithms that make use of shared edges and re-order triangles. The idea was that there is probably a middle ground between them.
 
 The basic goals were:
+
 * Maintain the ordering of triangles, exploiting vertex cache optimal ordering.
+
 * Exploit recent triangle connectivity.
+
 * Make it fast, especially for decompression, without the need to maintain large extra data structures, like winged edge.
+
 * Make it simple enough to be easily understandable. 
 
 The vertex cache optimisation means that there will be quite a few vertices and edges shared between the next triangle in the list and the previous. We exploit this by maintaining two relatively small fixed size FIFOs, an edge FIFO and a vertex FIFO (not unlike the vertex cache itself, except we store recent indices).
