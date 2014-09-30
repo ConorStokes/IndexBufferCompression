@@ -26,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define WRITE_BIT_STREAM_H__
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 #include <memory.h>
 
 #ifdef _MSC_VER
@@ -61,6 +61,9 @@ public:
 
 	// Write a number of bits to the stream.
 	void Write( uint32_t value, uint32_t bitCount );
+
+	// Write a V int to the stream.
+	void WriteVInt( uint32_t value );
 
 	// Get the size in bytes 
 	size_t ByteSize() const { return ( m_size + 7 ) >> 3; }
@@ -121,6 +124,19 @@ WBS_INLINE void WriteBitstream::Write( uint32_t value, uint32_t bitCount )
 	}
 
 	m_size += bitCount;
+}
+
+WBS_INLINE void WriteBitstream::WriteVInt( uint32_t value )
+{
+	do
+	{
+		uint32_t lower7 = value & 0x7F;
+
+		value >>= 7;
+
+		Write( lower7 | ( value > 0 ? 0x80 : 0 ), 8 );
+
+	} while ( value > 0 );
 }
 
 inline void WriteBitstream::Finish()

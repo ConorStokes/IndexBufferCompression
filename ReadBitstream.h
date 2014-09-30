@@ -26,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define READ_BIT_STREAM_H__
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 #ifdef _MSC_VER
 
@@ -53,6 +53,8 @@ public:
 
 	// Get the buffer size of this in bytes
 	size_t Size() const { return m_bufferSize; }
+
+	uint32_t ReadVInt();
 
 private:
 
@@ -118,6 +120,24 @@ RBS_INLINE uint32_t ReadBitstream::Read( uint32_t bitCount )
 	{
 		m_bitsLeft -= bitCount;
 	}
+
+	return result;
+}
+
+RBS_INLINE uint32_t ReadBitstream::ReadVInt()
+{
+	uint32_t bitsToShift = 0;
+	uint32_t result      = 0;
+	uint32_t readByte;
+
+	do
+	{
+		readByte = Read( 8 );
+
+		result |= ( readByte & 0x7F ) << bitsToShift;
+		bitsToShift += 7;
+
+	} while ( readByte & 0x80 );
 
 	return result;
 }

@@ -1,4 +1,4 @@
-# Vertex Cache Optimised Index Buffer Compression
+﻿# Vertex Cache Optimised Index Buffer Compression
 
 This is a small proof of concept for compressing and decompressing index buffer triangle lists. It's designed to maintain the order of the triangle list and perform best with a triangle list that has been vertex cache post-transform optimised (a pre-transform cache optimisation is done as part of the compression).
 
@@ -8,7 +8,7 @@ There are some cases where the vertices within a triangle are re-ordered, but th
 
 ## How does it work?
 
-The inspiration was a mix of Fabian Giesen's Simple loss-less index buffer compression http://fgiesen.wordpress.com/2013/12/14/simple-lossless-index-buffer-compression/ and
+The inspiration was a mix of Fabian Giesen's [Simple loss-less index buffer compression](http://fgiesen.wordpress.com/2013/12/14/simple-lossless-index-buffer-compression/) and
 the higher compression algorithms that make use of shared edges and re-order triangles. The idea was that there is probably a middle ground between them.
 
 The basic goals were:
@@ -45,3 +45,10 @@ the current index, incrementing it afterwards. This has the benefit of also mean
 That's a better question! While my thoughts were that in theory it would average around 11-12bits a triangle, the Stanford Armadillo mesh (optimised with Tom Forsyth's vertex cache optimisation algorithm), with 345944 triangles, compresses the index buffer down to 563122 bytes, which is more like 13 and the Stanford Bunny is 12.85bits or so. This is not anywhere near the state of the art in terms of compression (which get down to less than a bit), but that isn't the goal.
 
 Performance wise, with the code posted here, the Armadillo compresses in 18.5 milliseconds and decompresses in 6.6 milliseconds on average on my system. The Stanford bunny is more like 1.4 milliseconds to decompress, relatively.
+
+## Update!
+
+I've added a second more efficient (in terms of both speed and size) compression algorithm (CompressIndexBuffer2 and DecompressIndexBuffer2), as well as some changes upstream from Branimir Karadžić, who made some compiler compatibility fixes and added 16bit indice support. This uses a code per triangle instead of multiple codes for different cases.
+
+For details of the original algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/). For details of the second algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/). 
+
