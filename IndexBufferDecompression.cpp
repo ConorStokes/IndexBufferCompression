@@ -22,9 +22,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include "IndexBufferDecompression.h"
-#include "ReadBitstream.h"
-#include "IndexCompressionConstants.h"
+#include "indexbufferdecompression.h"
+#include "readbitstream.h"
+#include "indexcompressionconstants.h"
 #include <assert.h>
 
 template <typename Ty>
@@ -273,7 +273,7 @@ void DecompressIndexBuffer2( Ty* triangles, uint32_t triangleCount, ReadBitstrea
 
 			verticesRead += 2;
 
-			edgeFifo[ edgesRead & EDGE_FIFO_MASK ] = { triangle[ 0 ], triangle[ 1 ] };
+			edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 0 ], triangle[ 1 ] );
 
 			++edgesRead;
 

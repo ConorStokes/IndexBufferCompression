@@ -22,9 +22,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include "IndexBufferCompression.h"
-#include "WriteBitstream.h"
-#include "IndexCompressionConstants.h"
+#include "indexbuffercompression.h"
+#include "writebitstream.h"
+#include "indexcompressionconstants.h"
 #include <assert.h>
 
 #ifdef _MSC_VER
@@ -633,7 +633,7 @@ void CompressIndexBuffer( const Ty* triangles,
 		int32_t edgeCursor = edgesRead - 1;
 		bool     foundEdge = false;
 
-		int32_t freeVertex;
+		int32_t freeVertex = -1; // should not be negative 1 if found, this is not used as a signal, but for debugging.
 
 		// Probe back through the edge fifo to see if one of the triangle edges is in the FIFO
 		for ( ; edgeCursor >= lowestEdgeCursor; --edgeCursor )
