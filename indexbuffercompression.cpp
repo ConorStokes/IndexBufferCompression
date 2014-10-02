@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef _MSC_VER
 #define IBC_INLINE __forceinline
 #else
-#define IBC_INLINE __attribute__((always_inline))
+#define IBC_INLINE inline
 #endif 
 
 // Individual vertex type classifications.
@@ -187,11 +187,11 @@ static IBC_INLINE VertexClassification ClassifyVertex( uint32_t vertex, const ui
 }
 
 template <typename Ty>
-void CompressIndexBuffer2( const Ty* triangles,
-						   uint32_t triangleCount, 
-						   uint32_t* vertexRemap, 
-						   uint32_t vertexCount, 
-						   WriteBitstream& output )
+void CompressTriangleCodes1( const Ty* triangles,
+						     uint32_t triangleCount, 
+						     uint32_t* vertexRemap, 
+						     uint32_t vertexCount, 
+						     WriteBitstream& output )
 {
 	Edge      edgeFifo[ EDGE_FIFO_SIZE ];
 	uint32_t  vertexFifo[ VERTEX_FIFO_SIZE ];
@@ -558,7 +558,7 @@ static IBC_INLINE void OutputVertex( uint32_t vertex,
 		// no remap, so remap to the current high watermark and output a new vertex code.
 		vertexRemap[ vertex ] = newVertexCount;
 
-		output.Write( IB_NEW_VERTEX, IB_CODE_BITS );
+		output.Write( IB_NEW_VERTEX, IB_VERTEX_CODE_BITS );
 
 		++newVertexCount;
 
@@ -577,7 +577,7 @@ static IBC_INLINE void OutputVertex( uint32_t vertex,
 			if ( vertexFifo[ vertexCursor & VERTEX_FIFO_MASK ] == vertex )
 			{
 				// found a cached vertex, so write out the code for a cached vertex, as the relative index into the fifo.
-				output.Write( IB_CACHED_VERTEX, IB_CODE_BITS );
+				output.Write( IB_CACHED_VERTEX, IB_VERTEX_CODE_BITS );
 				output.Write( ( verticesRead - 1 ) - vertexCursor, CACHED_VERTEX_BITS );
 
 				return;
@@ -585,7 +585,7 @@ static IBC_INLINE void OutputVertex( uint32_t vertex,
 		}
 
 		// no cached vertex found, so write out a free vertex 
-		output.Write( IB_FREE_VERTEX, IB_CODE_BITS );
+		output.Write( IB_FREE_VERTEX, IB_VERTEX_CODE_BITS );
 
 		// free vertices are relative to the latest new vertex.
 		uint32_t vertexOutput = ( newVertexCount - 1 ) - vertexRemap[ vertex ];
@@ -602,11 +602,11 @@ static IBC_INLINE void OutputVertex( uint32_t vertex,
 }
 
 template <typename Ty>
-void CompressIndexBuffer( const Ty* triangles, 
-						  uint32_t triangleCount, 
-						  uint32_t* vertexRemap, 
-						  uint32_t vertexCount, 
-						  WriteBitstream& output )
+void CompressIndiceCodes1( const Ty* triangles, 
+						   uint32_t triangleCount, 
+						   uint32_t* vertexRemap, 
+						   uint32_t vertexCount, 
+						   WriteBitstream& output )
 {
 	Edge      edgeFifo[ EDGE_FIFO_SIZE ];
 	uint32_t  vertexFifo[ VERTEX_FIFO_SIZE ];
@@ -664,7 +664,7 @@ void CompressIndexBuffer( const Ty* triangles,
 		// we found an edge so write it out, then output the vertex
 		if ( foundEdge )
 		{
-			output.Write( IB_CACHED_EDGE, IB_CODE_BITS );
+			output.Write( IB_CACHED_EDGE, IB_VERTEX_CODE_BITS );
 			output.Write( ( edgesRead - 1 ) - edgeCursor, CACHED_EDGE_BITS );
 
 			const Edge& edge = edgeFifo[ edgeCursor & EDGE_FIFO_MASK ];
@@ -744,38 +744,48 @@ void CompressIndexBuffer( const Ty* triangles,
 	}
 }
 
+template <typename Ty>
+void CompressIndexBuffer( const Ty* triangles,
+						  uint32_t triangleCount,
+						  uint32_t* vertexRemap,
+						  uint32_t vertexCount,
+						  IndexBufferCompressionFormat format,
+						  WriteBitstream& output )
+{
+	output.WriteVInt( format );
+
+	switch ( format )
+	{
+	case IBCF_PER_INDICE_1:
+
+		CompressIndiceCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
+		break;
+
+	case IBCF_PER_TRIANGLE_1:
+
+		CompressTriangleCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
+		break;
+	}
+}
+
 void CompressIndexBuffer( const uint16_t* triangles,
 					      uint32_t triangleCount,
 						  uint32_t* vertexRemap,
-						  uint32_t vertexCount,
+						  uint32_t vertexCount, 
+						  IndexBufferCompressionFormat format,
 						  WriteBitstream& output )
 {
-	CompressIndexBuffer<uint16_t>( triangles, triangleCount, vertexRemap, vertexCount, output );
+
+	CompressIndexBuffer<uint16_t>( triangles, triangleCount, vertexRemap, vertexCount, format, output );
 }
 
 void CompressIndexBuffer( const uint32_t* triangles,
 						  uint32_t triangleCount,
 						  uint32_t* vertexRemap,
 						  uint32_t vertexCount,
+						  IndexBufferCompressionFormat format,
 						  WriteBitstream& output )
 {
-	CompressIndexBuffer<uint32_t>( triangles, triangleCount, vertexRemap, vertexCount, output );
+	CompressIndexBuffer<uint32_t>( triangles, triangleCount, vertexRemap, vertexCount, format, output );
 }
 
-void CompressIndexBuffer2( const uint16_t* triangles,
-						  uint32_t triangleCount,
-						  uint32_t* vertexRemap,
-						  uint32_t vertexCount,
-						  WriteBitstream& output )
-{
-	CompressIndexBuffer2<uint16_t>( triangles, triangleCount, vertexRemap, vertexCount, output );
-}
-
-void CompressIndexBuffer2( const uint32_t* triangles,
-						   uint32_t triangleCount,
-						   uint32_t* vertexRemap,
-						   uint32_t vertexCount,
-						   WriteBitstream& output )
-{
-	CompressIndexBuffer2<uint32_t>( triangles, triangleCount, vertexRemap, vertexCount, output );
-}
