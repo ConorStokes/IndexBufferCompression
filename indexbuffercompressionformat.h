@@ -12,7 +12,7 @@ enum IndexBufferCompressionFormat
 
     // Automatically pick the best encoding dependent on whether degenerate triangles are detected in the mesh.
     // Will take longer to compress (due to the degenerate triangle check).
-    ICBF_AUTO = 2
+    IBCF_AUTO = 2
 };
 
 #endif // -- INDEX_BUFFER_COMPRESSION_FORMAT_H__

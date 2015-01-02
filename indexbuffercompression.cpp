@@ -788,7 +788,7 @@ void CompressIndexBuffer( const Ty* triangles,
         CompressTriangleCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
         break;
 
-    case ICBF_AUTO:
+    case IBCF_AUTO:
 
         if ( ContainsDegenerates( triangles, triangleCount ) )
         {
