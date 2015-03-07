@@ -39,6 +39,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #endif 
 
+// Used for representing an entry in the decoding table for prefix coding.
+struct PrefixCodeTableEntry
+{
+    uint8_t original;
+    uint8_t codeLength;
+};
+
 // Very simple reader bitstream, note it does not do any overflow checking, etc.
 class ReadBitstream
 {
@@ -55,10 +62,16 @@ public:
     // Get the buffer size of this in bytes
     size_t Size() const { return m_bufferSize; }
 
+    // Read a variable encoded int (use MSB of each byte to signal another byte 
     uint32_t ReadVInt();
 
-private:
+    // Decode prefix code using table (least significant bits lookup). 
+    // Note, maximum code length should be 32 or less (practically much lower, as you need a table to match).
+    // Also note, this uses 4 byte reads/only partially refills the bit-buffer.
+    uint32_t Decode( const PrefixCodeTableEntry* table, const uint32_t maximumCodeLength );
 
+private:
+    
     uint64_t m_bitBuffer;
 
     const uint8_t* m_buffer;
@@ -69,6 +82,52 @@ private:
 
 };
 
+
+RBS_INLINE uint32_t ReadBitstream::Decode( const PrefixCodeTableEntry* table, uint32_t maximumCodeSize )
+{
+    if ( m_bitsLeft < maximumCodeSize )
+    {
+#if __X86_64__ /*OpenWatcom*/ \
+   || _M_X64 /*MSVC++*/ \
+   || _M_AMD64 /*MSVC++ compatibility with older compilers*/ \
+   || defined(__x86_64__) /*GCC,Clang,Intel*/ \
+   || __386__ || _M_I386 /*OpenWatcom*/ \
+   || (defined(__DMC__) && defined(_M_IX86)) /*DigitalMars*/ \
+   || (defined(_MSC_VER) && _M_IX86) /*MSVC++*/ \
+   || defined(__i386__) /*GCC,Clang,Intel*/
+
+        // We're on x86/x64, so we're little endian and can do an un-aligned read.
+        uint64_t intermediateBitBuffer = *(const uint32_t*)m_cursor;
+
+#else
+
+        // other processor architecture, unknown endian/unaligned read support
+        uint64_t intermediateBitBuffer = m_cursor[ 0 ];
+
+        intermediateBitBuffer |= static_cast< uint64_t >( m_cursor[ 1 ] ) << 8;
+        intermediateBitBuffer |= static_cast< uint64_t >( m_cursor[ 2 ] ) << 16;
+        intermediateBitBuffer |= static_cast< uint64_t >( m_cursor[ 3 ] ) << 24;
+
+#endif
+
+        m_bitBuffer           |= intermediateBitBuffer << m_bitsLeft;
+
+        m_bitsLeft            += 32;
+        m_cursor              += 4;
+    }
+
+    // mask should be constant collasped due to maximumCodeSize being fixed and this being inlined.
+    const uint64_t              mask       = ( uint64_t( 1 ) << maximumCodeSize ) - 1;
+    const PrefixCodeTableEntry& codeEntry  = table[ m_bitBuffer & mask ];
+    const uint32_t              codeLength = codeEntry.codeLength;
+
+    m_bitBuffer >>= codeLength;
+    m_bitsLeft   -= codeLength;
+
+    return codeEntry.original;
+}
+
+
 inline ReadBitstream::ReadBitstream( const uint8_t* buffer, size_t bufferSize )
 {
     m_cursor     =
@@ -77,7 +136,7 @@ inline ReadBitstream::ReadBitstream( const uint8_t* buffer, size_t bufferSize )
 
     if ( bufferSize >= 8 )
     {
-        m_bitBuffer = m_cursor[ 0 ];
+        m_bitBuffer  = m_cursor[ 0 ];
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 1 ] ) << 8;
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 2 ] ) << 16;
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 3 ] ) << 24;
@@ -86,7 +145,7 @@ inline ReadBitstream::ReadBitstream( const uint8_t* buffer, size_t bufferSize )
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 6 ] ) << 48;
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 7 ] ) << 56;
 
-        m_cursor += 8;
+        m_cursor  += 8;
         m_bitsLeft = 64;
     }
     else
@@ -99,11 +158,28 @@ inline ReadBitstream::ReadBitstream( const uint8_t* buffer, size_t bufferSize )
 RBS_INLINE uint32_t ReadBitstream::Read( uint32_t bitCount )
 {
     uint64_t mask   = ( uint64_t( 1 ) << bitCount ) - 1;
-    uint32_t result = static_cast< uint32_t >( ( m_bitBuffer >> ( 64 - m_bitsLeft ) & ( m_bitsLeft == 0 ? 0 : 0xFFFFFFFFFFFFFFFF ) ) & mask );
+    uint32_t result = static_cast< uint32_t >( m_bitBuffer & mask );
+
+    m_bitBuffer >>= bitCount;
 
     if ( m_bitsLeft < bitCount )
     {
-        m_bitBuffer = m_cursor[ 0 ];
+#if __X86_64__ /*OpenWatcom*/ \
+   || _M_X64 /*MSVC++*/ \
+   || _M_AMD64 /*MSVC++ compatibility with older compilers*/ \
+   || defined(__x86_64__) /*GCC,Clang,Intel*/ \
+   || __386__ || _M_I386 /*OpenWatcom*/ \
+   || (defined(__DMC__) && defined(_M_IX86)) /*DigitalMars*/ \
+   || (defined(_MSC_VER) && _M_IX86) /*MSVC++*/ \
+   || defined(__i386__) /*GCC,Clang,Intel*/
+
+        // We're on x86/x64, so we're little endian and can do an un-aligned read.
+        m_bitBuffer = *(const uint64_t*)m_cursor;
+
+#else
+
+        // other processor architecture, unknown endian/unaligned read support
+        m_bitBuffer  = m_cursor[ 0 ];
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 1 ] ) << 8;
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 2 ] ) << 16;
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 3 ] ) << 24;
@@ -112,18 +188,24 @@ RBS_INLINE uint32_t ReadBitstream::Read( uint32_t bitCount )
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 6 ] ) << 48;
         m_bitBuffer |= static_cast< uint64_t >( m_cursor[ 7 ] ) << 56;
 
+#endif
+
         m_cursor += 8;
 
-        result     |= static_cast< uint32_t >( m_bitBuffer << m_bitsLeft ) & mask;
-        m_bitsLeft  = 64 - ( bitCount - m_bitsLeft );
+        uint32_t leftOverBits = bitCount - m_bitsLeft;
+
+        result       |= static_cast< uint32_t >( m_bitBuffer << m_bitsLeft ) & mask;
+        m_bitBuffer >>= leftOverBits;
+        m_bitsLeft    = 64 - leftOverBits;
     }
     else
     {
         m_bitsLeft -= bitCount;
     }
 
-    return result;
+    return result; 
 }
+
 
 RBS_INLINE uint32_t ReadBitstream::ReadVInt()
 {
@@ -133,12 +215,13 @@ RBS_INLINE uint32_t ReadBitstream::ReadVInt()
 
     do
     {
-        readByte = Read( 8 );
 
-        result |= ( readByte & 0x7F ) << bitsToShift;
-        bitsToShift += 7;
+        readByte      = Read( 8 );
+        result       |= ( readByte & 0x7F ) << bitsToShift;
+        bitsToShift  += 7;
 
-    } while ( readByte & 0x80 );
+    } 
+    while ( readByte & 0x80 );
 
     return result;
 }

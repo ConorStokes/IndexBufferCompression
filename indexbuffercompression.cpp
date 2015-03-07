@@ -49,7 +49,7 @@ struct VertexCompressionCase
 };
 
 // This is a table for looking up the appropriate code and rotation for a set of vertex classifications.
-const VertexCompressionCase CompressionCase[3][3][3] =
+static const VertexCompressionCase CompressionCase[3][3][3] =
 {
     { // new 
         { // new new
@@ -158,7 +158,101 @@ const VertexCompressionCase CompressionCase[3][3][3] =
     }
 };
 
-const uint32_t VERTEX_NOT_MAPPED = 0xFFFFFFFF;
+// Prefix code table used for encoding edge bits
+static const PrefixCode EdgePrefixCodes[] =
+{
+	{ 1, 2 },
+	{ 2, 2 },
+	{ 0, 3 },
+	{ 15, 4 },
+	{ 11, 4 },
+	{ 3, 4 },
+	{ 7, 5 },
+	{ 28, 5 },
+	{ 20, 5 },
+	{ 55, 6 },
+	{ 36, 6 },
+	{ 12, 6 },
+	{ 23, 7 },
+	{ 44, 7 },
+	{ 215, 8 },
+	{ 87, 8 },
+	{ 196, 8 },
+	{ 132, 8 },
+	{ 236, 9 },
+	{ 364, 9 },
+	{ 324, 9 },
+	{ 68, 9 },
+	{ 1004, 10 },
+	{ 492, 10 },
+	{ 108, 10 },
+	{ 772, 10 },
+	{ 516, 10 },
+	{ 4, 10 },
+	{ 1644, 11 },
+	{ 620, 11 },
+	{ 1284, 11 },
+	{ 260, 11 }
+};
+
+// Prefix code table used for vertices
+static const PrefixCode CachedVertexPrefixCodes[] =
+{
+	{ 215, 8 },
+	{ 0, 1 },
+	{ 5, 3 },
+	{ 3, 4 },
+	{ 15, 5 },
+	{ 11, 5 },
+	{ 9, 5 },
+	{ 1, 5 },
+	{ 55, 6 },
+	{ 39, 6 },
+	{ 27, 6 },
+	{ 25, 6 },
+	{ 17, 6 },
+	{ 63, 7 },
+	{ 31, 7 },
+	{ 23, 7 },
+	{ 7, 7 },
+	{ 59, 7 },
+	{ 121, 7 },
+	{ 113, 7 },
+	{ 49, 7 },
+	{ 255, 8 },
+	{ 127, 8 },
+	{ 223, 8 },
+	{ 95, 8 },
+	{ 87, 8 },
+	{ 199, 8 },
+	{ 71, 8 },
+	{ 251, 8 },
+	{ 123, 8 },
+	{ 185, 8 },
+	{ 57, 8 }
+};
+
+// Prefix code table used for triangles
+static const PrefixCode TrianglePrefixCodes[] =
+{
+	{ 0, 1 },
+	{ 3, 2 },
+	{ 5, 3 },
+	{ 49, 7 },
+	{ 33, 7 },
+	{ 81, 7 },
+	{ 9, 5 },
+	{ 113, 7 },
+	{ 57, 7 },
+	{ 25, 6 },
+	{ 121, 7 },
+	{ 17, 7 },
+	{ 1, 6 },
+	{ 97, 7 }
+};
+
+// Constant value for vertices that don't get mapped in the vertex re-map.
+static const uint32_t VERTEX_NOT_MAPPED = 0xFFFFFFFF;
 
 // Classify a vertex as new, cached or free, outputting the relative position in the vertex indice cache FIFO.
 static IBC_INLINE VertexClassification ClassifyVertex( uint32_t vertex, const uint32_t* vertexRemap, const uint32_t* vertexFifo, uint32_t verticesRead, uint32_t& cachedVertexIndex )
@@ -187,6 +281,355 @@ static IBC_INLINE VertexClassification ClassifyVertex( uint32_t vertex, const ui
 }
 
 template <typename Ty>
+void CompressTriangleCodesPrefixCodes(
+	const Ty* triangles,
+	uint32_t triangleCount,
+	uint32_t* vertexRemap,
+	uint32_t vertexCount,
+	WriteBitstream& output )
+{
+	Edge      edgeFifo[ EDGE_FIFO_SIZE ];
+	uint32_t  vertexFifo[ VERTEX_FIFO_SIZE ];
+
+	uint32_t  edgesRead    = 0;
+	uint32_t  verticesRead = 0;
+	uint32_t  newVertices  = 0;
+	const Ty* triangleEnd  = triangles + ( triangleCount * 3 );
+
+	assert( vertexCount < 0xFFFFFFFF );
+
+	uint32_t* vertexRemapEnd = vertexRemap + vertexCount;
+
+	// clear the vertex remapping to "not found" value of 0xFFFFFFFF - dirty, but low overhead.
+	for ( uint32_t* remappedVertex = vertexRemap; remappedVertex < vertexRemapEnd; ++remappedVertex )
+	{
+		*remappedVertex = VERTEX_NOT_MAPPED;
+	}
+
+	// iterate through the triangles
+	for ( const Ty* triangle = triangles; triangle < triangleEnd; triangle += 3 )
+	{
+		int32_t lowestEdgeCursor = edgesRead >= EDGE_FIFO_SIZE ? edgesRead - EDGE_FIFO_SIZE : 0;
+		int32_t edgeCursor       = edgesRead - 1;
+		bool    foundEdge        = false;
+
+		int32_t spareVertex = 0;
+
+		// check to make sure that there are no degenerate triangles.
+		assert( triangle[ 0 ] != triangle[ 1 ] && triangle[ 1 ] != triangle[ 2 ] && triangle[ 2 ] != triangle[ 0 ] );
+
+		// Probe back through the edge fifo to see if one of the triangle edges is in the FIFO
+		for ( ; edgeCursor >= lowestEdgeCursor; --edgeCursor )
+		{
+			const Edge& edge = edgeFifo[ edgeCursor & EDGE_FIFO_MASK ];
+
+			// check all the edges in order and save the free vertex.
+			if ( edge.second == triangle[ 0 ] && edge.first == triangle[ 1 ] )
+			{
+				foundEdge   = true;
+				spareVertex = 2;
+				break;
+			}
+			else if ( edge.second == triangle[ 1 ] && edge.first == triangle[ 2 ] )
+			{
+				foundEdge   = true;
+				spareVertex = 0;
+				break;
+			}
+			else if ( edge.second == triangle[ 2 ] && edge.first == triangle[ 0 ] )
+			{
+				foundEdge   = true;
+				spareVertex = 1;
+				break;
+			}
+		}
+
+		// we found an edge so write it out, so classify a vertex and then write out the correct code.
+		if ( foundEdge )
+		{
+			uint32_t cachedVertex;
+
+			uint32_t             spareVertexIndice = triangle[ spareVertex ];
+			VertexClassification freeVertexClass   = ClassifyVertex( spareVertexIndice, vertexRemap, vertexFifo, verticesRead, cachedVertex );
+			uint32_t             relativeEdge      = ( edgesRead - 1 ) - edgeCursor;
+
+			switch ( freeVertexClass )
+			{
+			case NEW_VERTEX:
+
+				output.WritePrefixCode( IB_EDGE_NEW, TrianglePrefixCodes );
+				output.WritePrefixCode( relativeEdge, EdgePrefixCodes );
+
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = spareVertexIndice;
+				vertexRemap[ spareVertexIndice ] = newVertices;
+
+				++verticesRead;
+				++newVertices;
+				break;
+
+			case CACHED_VERTEX:
+
+				output.WritePrefixCode( IB_EDGE_CACHED, TrianglePrefixCodes );
+				output.WritePrefixCode( relativeEdge, EdgePrefixCodes );
+				output.WritePrefixCode( cachedVertex, CachedVertexPrefixCodes );
+
+				break;
+
+			case FREE_VERTEX:
+
+				output.WritePrefixCode( IB_EDGE_FREE, TrianglePrefixCodes );
+				output.WritePrefixCode( relativeEdge, EdgePrefixCodes );
+
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = spareVertexIndice;
+
+				++verticesRead;
+
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ spareVertexIndice ] );
+
+				break;
+			}
+
+			// Populate the edge fifo with the the remaining edges
+			// Note - the winding order is important as we'll need to re-produce this on decompression.
+			// The edges are put in as if the found edge is the first edge in the triangle (which it will be when we
+			// reconstruct).
+			switch ( spareVertex )
+			{
+			case 0:
+
+				edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 2 ], triangle[ 0 ] );
+
+				++edgesRead;
+
+				edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 0 ], triangle[ 1 ] );
+
+				++edgesRead;
+				break;
+
+			case 1:
+
+				edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 0 ], triangle[ 1 ] );
+
+				++edgesRead;
+
+				edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 1 ], triangle[ 2 ] );
+
+				++edgesRead;
+				break;
+
+			case 2:
+
+				edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 1 ], triangle[ 2 ] );
+
+				++edgesRead;
+
+				edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 2 ], triangle[ 0 ] );
+
+				++edgesRead;
+				break;
+			}
+		}
+		else
+		{
+			VertexClassification classifications[ 3 ];
+			uint32_t             cachedVertexIndices[ 3 ];
+
+			// classify each vertex as new, cached or free, potentially extracting a cached indice.
+			classifications[ 0 ] = ClassifyVertex( triangle[ 0 ], vertexRemap, vertexFifo, verticesRead, cachedVertexIndices[ 0 ] );
+			classifications[ 1 ] = ClassifyVertex( triangle[ 1 ], vertexRemap, vertexFifo, verticesRead, cachedVertexIndices[ 1 ] );
+			classifications[ 2 ] = ClassifyVertex( triangle[ 2 ], vertexRemap, vertexFifo, verticesRead, cachedVertexIndices[ 2 ] );
+
+			// use the classifications to lookup the matching compression code and potentially rotate the order of the vertices.
+			const VertexCompressionCase& compressionCase = CompressionCase[ classifications[ 0 ] ][ classifications[ 1 ] ][ classifications[ 2 ] ];
+
+			// rotate the order of the vertices based on the compression classification.
+			uint32_t reorderedTriangle[ 3 ];
+
+			reorderedTriangle[ 0 ] = triangle[ compressionCase.vertexOrder[ 0 ] ];
+			reorderedTriangle[ 1 ] = triangle[ compressionCase.vertexOrder[ 1 ] ];
+			reorderedTriangle[ 2 ] = triangle[ compressionCase.vertexOrder[ 2 ] ];
+
+			output.WritePrefixCode( compressionCase.code, TrianglePrefixCodes );
+
+			switch ( compressionCase.code )
+			{
+			case IB_NEW_NEW_NEW:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = triangle[ 0 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = triangle[ 1 ];
+				vertexFifo[ ( verticesRead + 2 ) & VERTEX_FIFO_MASK ] = triangle[ 2 ];
+
+				vertexRemap[ triangle[ 0 ] ] = newVertices;
+				vertexRemap[ triangle[ 1 ] ] = newVertices + 1;
+				vertexRemap[ triangle[ 2 ] ] = newVertices + 2;
+
+				verticesRead += 3;
+				newVertices  += 3;
+
+				break;
+			}
+			case IB_NEW_NEW_CACHED:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 0 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 1 ];
+
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 2 ] ], CachedVertexPrefixCodes );
+
+				vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
+				vertexRemap[ reorderedTriangle[ 1 ] ] = newVertices + 1;
+
+				verticesRead += 2;
+				newVertices  += 2;
+
+				break;
+			}
+			case IB_NEW_NEW_FREE:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 0 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 1 ];
+				vertexFifo[ ( verticesRead + 2 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 2 ];
+
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
+
+				vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
+				vertexRemap[ reorderedTriangle[ 1 ] ] = newVertices + 1;
+
+				verticesRead += 3;
+				newVertices  += 2;
+
+				break;
+			}
+			case IB_NEW_CACHED_CACHED:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 0 ];
+
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 1 ] ], CachedVertexPrefixCodes );
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 2 ] ], CachedVertexPrefixCodes );
+
+				vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
+				verticesRead += 1;
+				newVertices  += 1;
+
+				break;
+			}
+			case IB_NEW_CACHED_FREE:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 0 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 2 ];
+
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 1 ] ], CachedVertexPrefixCodes );
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
+
+				vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
+
+				verticesRead += 2;
+				newVertices  += 1;
+
+				break;
+			}
+			case IB_NEW_FREE_CACHED:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 0 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 1 ];
+
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 1 ] ] );
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 2 ] ], CachedVertexPrefixCodes );
+
+				vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
+
+				verticesRead += 2;
+				newVertices  += 1;
+
+				break;
+			}
+			case IB_NEW_FREE_FREE:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ]         = reorderedTriangle[ 0 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 1 ];
+				vertexFifo[ ( verticesRead + 2 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 2 ];
+
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 1 ] ] );
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
+
+				vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
+
+				verticesRead += 3;
+				newVertices  += 1;
+
+				break;
+			}
+			case IB_CACHED_CACHED_CACHED:
+			{
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 0 ] ], CachedVertexPrefixCodes );
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 1 ] ], CachedVertexPrefixCodes );
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 2 ] ], CachedVertexPrefixCodes );
+
+				break;
+			}
+			case IB_CACHED_CACHED_FREE:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 2 ];
+
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 0 ] ], CachedVertexPrefixCodes );
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 1 ] ], CachedVertexPrefixCodes );
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
+
+				verticesRead += 1;
+
+				break;
+			}
+			case IB_CACHED_FREE_FREE:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 1 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 2 ];
+
+				output.WritePrefixCode( cachedVertexIndices[ compressionCase.vertexOrder[ 0 ] ], CachedVertexPrefixCodes );
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 1 ] ] );
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
+
+				verticesRead += 2;
+
+				break;
+			}
+			case IB_FREE_FREE_FREE:
+			{
+				vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = reorderedTriangle[ 0 ];
+				vertexFifo[ ( verticesRead + 1 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 1 ];
+				vertexFifo[ ( verticesRead + 2 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 2 ];
+
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 0 ] ] );
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 1 ] ] );
+				output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
+
+				verticesRead += 3;
+				break;
+			}
+
+			default: // IB_EDGE_NEW, IB_EDGE_CACHED, IB_EDGE_0_NEW, IB_EDGE_1_NEW
+				break;
+			}
+
+			// populate the edge fifo with the 3 most recent edges
+			edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( reorderedTriangle[ 0 ], reorderedTriangle[ 1 ] );
+
+			++edgesRead;
+
+			edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( reorderedTriangle[ 1 ], reorderedTriangle[ 2 ] );
+
+			++edgesRead;
+
+			edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( reorderedTriangle[ 2 ], reorderedTriangle[ 0 ] );
+
+			++edgesRead;
+		}
+	}
+
+	// Pad out the buffer to make sure we don't overflow when trying to read the bits for the last prefix code table lookup.
+	output.Write( 0, LONGEST_PREFIX_CODE - 1 );
+}
+
+
+template <typename Ty>
 void CompressTriangleCodes1( const Ty* triangles,
                              uint32_t triangleCount, 
                              uint32_t* vertexRemap, 
@@ -199,7 +642,7 @@ void CompressTriangleCodes1( const Ty* triangles,
     uint32_t  edgesRead      = 0;
     uint32_t  verticesRead   = 0;
     uint32_t  newVertices    = 0;
-    const Ty* triangleEnd = triangles + ( triangleCount * 3 );
+    const Ty* triangleEnd    = triangles + ( triangleCount * 3 );
 
     assert( vertexCount < 0xFFFFFFFF );
 
@@ -272,13 +715,13 @@ void CompressTriangleCodes1( const Ty* triangles,
                 case 1:
 
                     output.Write( IB_EDGE_1_NEW, IB_TRIANGLE_CODE_BITS );
-                    break;
+					break;
 
                 default:
 
                     output.Write( IB_EDGE_NEW, IB_TRIANGLE_CODE_BITS );
                     output.Write( relativeEdge, CACHED_EDGE_BITS );
-                    break;
+					break;
 
                 }
 
@@ -294,7 +737,8 @@ void CompressTriangleCodes1( const Ty* triangles,
                 output.Write( IB_EDGE_CACHED, IB_TRIANGLE_CODE_BITS );
                 output.Write( relativeEdge, CACHED_EDGE_BITS );
                 output.Write( cachedVertex, CACHED_VERTEX_BITS );
-                break;
+
+				break;
 
             case FREE_VERTEX:
 
@@ -306,6 +750,7 @@ void CompressTriangleCodes1( const Ty* triangles,
                 ++verticesRead;
                 
                 output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ spareVertexIndice ] );
+
                 break;
 
             }
@@ -398,7 +843,7 @@ void CompressTriangleCodes1( const Ty* triangles,
 
                 vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
                 vertexRemap[ reorderedTriangle[ 1 ] ] = newVertices + 1;
-
+				
                 verticesRead += 2;
                 newVertices  += 2;
 
@@ -411,7 +856,7 @@ void CompressTriangleCodes1( const Ty* triangles,
                 vertexFifo[ ( verticesRead + 2 ) & VERTEX_FIFO_MASK ] = reorderedTriangle[ 2 ];
 
                 output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
-
+				
                 vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
                 vertexRemap[ reorderedTriangle[ 1 ] ] = newVertices + 1;
 
@@ -441,7 +886,7 @@ void CompressTriangleCodes1( const Ty* triangles,
                 output.Write( cachedVertexIndices[ compressionCase.vertexOrder[ 1 ] ], CACHED_VERTEX_BITS );
                 output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
 
-                vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
+				vertexRemap[ reorderedTriangle[ 0 ] ] = newVertices;
 
                 verticesRead += 2;
                 newVertices  += 1;
@@ -484,7 +929,8 @@ void CompressTriangleCodes1( const Ty* triangles,
                 output.Write( cachedVertexIndices[ compressionCase.vertexOrder[ 0 ] ], CACHED_VERTEX_BITS );
                 output.Write( cachedVertexIndices[ compressionCase.vertexOrder[ 1 ] ], CACHED_VERTEX_BITS );
                 output.Write( cachedVertexIndices[ compressionCase.vertexOrder[ 2 ] ], CACHED_VERTEX_BITS );
-                break;
+				
+				break;
             }
             case IB_CACHED_CACHED_FREE:
             {
@@ -521,7 +967,7 @@ void CompressTriangleCodes1( const Ty* triangles,
                 output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 1 ] ] );
                 output.WriteVInt( ( newVertices - 1 ) - vertexRemap[ reorderedTriangle[ 2 ] ] );
 
-                verticesRead += 3;
+				verticesRead += 3;
                 break;
             }
 
@@ -728,8 +1174,8 @@ void CompressIndiceCodes1( const Ty* triangles,
         {
             // no edge, so we need to output all the vertices.
             OutputVertex( triangle[ 0 ], vertexRemap, newVertices, vertexFifo, verticesRead, output );
-            OutputVertex( triangle[ 1 ], vertexRemap, newVertices, vertexFifo, verticesRead, output );
-            OutputVertex( triangle[ 2 ], vertexRemap, newVertices, vertexFifo, verticesRead, output );
+			OutputVertex( triangle[ 1 ], vertexRemap, newVertices, vertexFifo, verticesRead, output );
+			OutputVertex( triangle[ 2 ], vertexRemap, newVertices, vertexFifo, verticesRead, output );
 
             // populate the edge fifo with the 3 most recent edges
             edgeFifo[ edgesRead & EDGE_FIFO_MASK ].set( triangle[ 0 ], triangle[ 1 ] );
@@ -779,13 +1225,13 @@ void CompressIndexBuffer( const Ty* triangles,
     case IBCF_PER_INDICE_1:
 
         output.WriteVInt( IBCF_PER_INDICE_1 );
-        CompressIndiceCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
+		CompressIndiceCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
         break;
 
     case IBCF_PER_TRIANGLE_1:
 
         output.WriteVInt( IBCF_PER_TRIANGLE_1 );
-        CompressTriangleCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
+		CompressTriangleCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
         break;
 
     case IBCF_AUTO:
@@ -793,15 +1239,22 @@ void CompressIndexBuffer( const Ty* triangles,
         if ( ContainsDegenerates( triangles, triangleCount ) )
         {
             output.WriteVInt( IBCF_PER_INDICE_1 );
-            CompressIndiceCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
+			CompressIndiceCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
         }
         else
         {
             output.WriteVInt( IBCF_PER_TRIANGLE_1 );
-            CompressTriangleCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
+			CompressTriangleCodes1<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
         }
 
         break;
+
+	case IBCF_PER_TRIANGLE_PREFIX_ENTROPY:
+
+		output.WriteVInt( IBCF_PER_TRIANGLE_PREFIX_ENTROPY );
+		CompressTriangleCodesPrefixCodes<Ty>( triangles, triangleCount, vertexRemap, vertexCount, output );
+		break;
+
     }
 }
 
@@ -823,6 +1276,6 @@ void CompressIndexBuffer( const uint32_t* triangles,
                           IndexBufferCompressionFormat format,
                           WriteBitstream& output )
 {
-    CompressIndexBuffer<uint32_t>( triangles, triangleCount, vertexRemap, vertexCount, format, output );
+	CompressIndexBuffer<uint32_t>( triangles, triangleCount, vertexRemap, vertexCount, format, output );
 }
 

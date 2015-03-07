@@ -28,22 +28,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdint.h>
 
+#ifdef _MSC_VER
+
+#define ICC_INLINE __forceinline
+
+#else
+
+#define ICC_INLINE inline
+
+#endif 
+
 // Constant fifo and code sizes.
-const int VERTEX_FIFO_SIZE      = 32;
-const int VERTEX_FIFO_MASK      = VERTEX_FIFO_SIZE - 1;
-const int EDGE_FIFO_SIZE        = 32;
-const int EDGE_FIFO_MASK        = EDGE_FIFO_SIZE - 1;
-const int CACHED_EDGE_BITS      = 5;
-const int CACHED_VERTEX_BITS    = 5;
+const uint32_t VERTEX_FIFO_SIZE      = 32;
+const uint32_t VERTEX_FIFO_MASK      = VERTEX_FIFO_SIZE - 1;
+const uint32_t EDGE_FIFO_SIZE        = 32;
+const uint32_t EDGE_FIFO_MASK        = EDGE_FIFO_SIZE - 1;
+const uint32_t CACHED_EDGE_BITS      = 5;
+const uint32_t CACHED_VERTEX_BITS    = 5;
 
-const int IB_VERTEX_CODE_BITS   = 2;
+const uint32_t IB_VERTEX_CODE_BITS   = 2;
 
-const int IB_TRIANGLE_CODE_BITS = 4;
+const uint32_t IB_TRIANGLE_CODE_BITS = 4;
+
+// The longest prefix code length in bits for the prefix coded version.
+const uint32_t LONGEST_PREFIX_CODE   = 11;
 
 // Edge in the edge fifo.
 struct Edge
 {
-    void set( uint32_t f, uint32_t s )
+	void set( uint32_t f, uint32_t s )
     {
         first  = f;
         second = s;
@@ -87,6 +100,8 @@ enum IndexBufferTriangleCodes
     IB_CACHED_CACHED_FREE = 11,
     IB_CACHED_FREE_FREE = 12,
     IB_FREE_FREE_FREE = 13,
+
+	// Note these two codes aren't used for prefix coding
     IB_EDGE_0_NEW = 14,
     IB_EDGE_1_NEW = 15
 };

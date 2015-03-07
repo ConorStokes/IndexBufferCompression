@@ -36,6 +36,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define WBS_INLINE inline
 #endif 
 
+// Used for prefix coding tables.
+struct PrefixCode
+{
+	uint32_t code;
+	uint32_t bitLength;
+};
+
 // Very simple bitstream for writing that will grow to accomodate written bits. 
 class WriteBitstream
 {
@@ -75,6 +82,10 @@ public:
     // Get the raw data for this buffer.
     const uint8_t* RawData() const { return m_buffer; }
 
+	// Write a prefix code from the coding table to the stream.
+	template <typename Ty>
+	void WritePrefixCode( Ty input, const PrefixCode* codes );
+
 private:
 
     // If we need to grow the buffer.
@@ -93,6 +104,7 @@ private:
     uint8_t*  m_bufferEnd;
     uint32_t  m_bitsLeft;
 };
+
 
 WBS_INLINE void WriteBitstream::Write( uint32_t value, uint32_t bitCount )
 {
@@ -127,6 +139,7 @@ WBS_INLINE void WriteBitstream::Write( uint32_t value, uint32_t bitCount )
     m_size += bitCount;
 }
 
+
 WBS_INLINE void WriteBitstream::WriteVInt( uint32_t value )
 {
     do
@@ -139,6 +152,7 @@ WBS_INLINE void WriteBitstream::WriteVInt( uint32_t value )
 
     } while ( value > 0 );
 }
+
 
 inline void WriteBitstream::Finish()
 {
@@ -159,6 +173,7 @@ inline void WriteBitstream::Finish()
     m_bufferCursor += 8;
 }
 
+
 WBS_INLINE void WriteBitstream::GrowBuffer()
 {
     size_t    bufferSize     = m_bufferEnd - m_buffer;
@@ -174,5 +189,15 @@ WBS_INLINE void WriteBitstream::GrowBuffer()
     m_bufferCursor = m_buffer + bufferPosition;
     m_bufferEnd    = m_buffer + newBufferSize;
 }
+
+
+template <typename Ty>
+WBS_INLINE void WriteBitstream::WritePrefixCode( Ty input, const PrefixCode* codes )
+{
+	const PrefixCode& code = codes[ input ];
+
+	Write( code.code, code.bitLength );
+}
+
 
 #endif // -- WRITE_BIT_STREAM_H__
