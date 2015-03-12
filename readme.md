@@ -52,3 +52,6 @@ I've added a second more efficient (in terms of both speed and size) compression
 
 For details of the original algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/). For details of the second algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/). 
 
+## Update 2!
+
+There were previously some bug fixes for 64bit mode, but I have now added another compression option that adds prefix/huffman code based entropy encoding, as well as some bitstream I/O optimisations. 
