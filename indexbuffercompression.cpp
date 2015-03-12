@@ -161,38 +161,38 @@ static const VertexCompressionCase CompressionCase[3][3][3] =
 // Prefix code table used for encoding edge bits
 static const PrefixCode EdgePrefixCodes[] =
 {
-	{ 1, 2 },
-	{ 2, 2 },
-	{ 0, 3 },
-	{ 15, 4 },
-	{ 11, 4 },
-	{ 3, 4 },
-	{ 7, 5 },
-	{ 28, 5 },
-	{ 20, 5 },
-	{ 55, 6 },
-	{ 36, 6 },
-	{ 12, 6 },
-	{ 23, 7 },
-	{ 44, 7 },
-	{ 215, 8 },
-	{ 87, 8 },
-	{ 196, 8 },
-	{ 132, 8 },
-	{ 236, 9 },
-	{ 364, 9 },
-	{ 324, 9 },
-	{ 68, 9 },
-	{ 1004, 10 },
-	{ 492, 10 },
-	{ 108, 10 },
-	{ 772, 10 },
-	{ 516, 10 },
-	{ 4, 10 },
-	{ 1644, 11 },
-	{ 620, 11 },
-	{ 1284, 11 },
-	{ 260, 11 }
+    { 1, 2 },
+    { 2, 2 },
+    { 0, 3 },
+    { 15, 4 },
+    { 11, 4 },
+    { 3, 4 },
+    { 7, 5 },
+    { 28, 5 },
+    { 20, 5 },
+    { 55, 6 },
+    { 12, 6 },
+    { 36, 6 },
+    { 23, 7 },
+    { 44, 7 },
+    { 215, 8 },
+    { 87, 8 },
+    { 196, 8 },
+    { 132, 8 },
+    { 236, 9 },
+    { 364, 9 },
+    { 324, 9 },
+    { 68, 9 },
+    { 1004, 10 },
+    { 492, 10 },
+    { 108, 10 },
+    { 772, 10 },
+    { 516, 10 },
+    { 4, 10 },
+    { 1644, 11 },
+    { 620, 11 },
+    { 1284, 11 },
+    { 260, 11 }
 };
 
 // Prefix code table used for vertices
@@ -280,6 +280,7 @@ static IBC_INLINE VertexClassification ClassifyVertex( uint32_t vertex, const ui
     }
 }
 
+// Compress using triangle codes/prefix coding.
 template <typename Ty>
 void CompressTriangleCodesPrefixCodes(
 	const Ty* triangles,

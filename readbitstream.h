@@ -39,6 +39,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #endif 
 
+// Detect if our processor is x86/x64 (supports unaligned reads and is little endian)
+// Note that other processors could be added
+#if __X86_64__ || \
+    _M_X64 || \
+    _M_AMD64 || \
+   defined(__x86_64__) || \
+   __386__ || \
+   _M_I386 || \
+   (defined(__DMC__) && defined(_M_IX86)) || \
+   (defined(_MSC_VER) && _M_IX86) || \
+   defined(__i386__) 
+
+#define RBS_LITTLE_ENDIAN_UNALIGNED
+
+#endif
+
+
 // Used for representing an entry in the decoding table for prefix coding.
 struct PrefixCodeTableEntry
 {
@@ -87,14 +104,7 @@ RBS_INLINE uint32_t ReadBitstream::Decode( const PrefixCodeTableEntry* table, ui
 {
     if ( m_bitsLeft < maximumCodeSize )
     {
-#if __X86_64__ /*OpenWatcom*/ \
-   || _M_X64 /*MSVC++*/ \
-   || _M_AMD64 /*MSVC++ compatibility with older compilers*/ \
-   || defined(__x86_64__) /*GCC,Clang,Intel*/ \
-   || __386__ || _M_I386 /*OpenWatcom*/ \
-   || (defined(__DMC__) && defined(_M_IX86)) /*DigitalMars*/ \
-   || (defined(_MSC_VER) && _M_IX86) /*MSVC++*/ \
-   || defined(__i386__) /*GCC,Clang,Intel*/
+#if defined( RBS_LITTLE_ENDIAN_UNALIGNED )
 
         // We're on x86/x64, so we're little endian and can do an un-aligned read.
         uint64_t intermediateBitBuffer = *(const uint32_t*)m_cursor;
@@ -164,14 +174,7 @@ RBS_INLINE uint32_t ReadBitstream::Read( uint32_t bitCount )
 
     if ( m_bitsLeft < bitCount )
     {
-#if __X86_64__ /*OpenWatcom*/ \
-   || _M_X64 /*MSVC++*/ \
-   || _M_AMD64 /*MSVC++ compatibility with older compilers*/ \
-   || defined(__x86_64__) /*GCC,Clang,Intel*/ \
-   || __386__ || _M_I386 /*OpenWatcom*/ \
-   || (defined(__DMC__) && defined(_M_IX86)) /*DigitalMars*/ \
-   || (defined(_MSC_VER) && _M_IX86) /*MSVC++*/ \
-   || defined(__i386__) /*GCC,Clang,Intel*/
+#if defined( RBS_LITTLE_ENDIAN_UNALIGNED )
 
         // We're on x86/x64, so we're little endian and can do an un-aligned read.
         m_bitBuffer = *(const uint64_t*)m_cursor;

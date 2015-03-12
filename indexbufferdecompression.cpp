@@ -41,21 +41,21 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
     Edge      edgeFifo[ EDGE_FIFO_SIZE ];
     uint32_t  vertexFifo[ VERTEX_FIFO_SIZE ];
 
-    uint32_t  edgesRead = 0;
+    uint32_t  edgesRead    = 0;
     uint32_t  verticesRead = 0;
-    uint32_t  newVertices = 0;
-    const Ty* triangleEnd = triangles + ( triangleCount * 3 );
+    uint32_t  newVertices  = 0;
+    const Ty* triangleEnd  = triangles + ( triangleCount * 3 );
     
     // iterate through the triangles
     for ( Ty* triangle = triangles; triangle < triangleEnd; triangle += 3 )
     {
-		IndexBufferTriangleCodes code = static_cast< IndexBufferTriangleCodes >( input.Decode( TriangleDecoding, TRIANGLE_MAX_CODE_LENGTH ) );
+        IndexBufferTriangleCodes code = static_cast< IndexBufferTriangleCodes >( input.Decode( TriangleDecoding, TRIANGLE_MAX_CODE_LENGTH ) );
 
         switch ( code )
         {
         case IB_EDGE_NEW:
         {
-			uint32_t    edgeFifoIndex = input.Decode( EdgeDecoding, EDGE_MAX_CODE_LENGTH );
+            uint32_t    edgeFifoIndex = input.Decode( EdgeDecoding, EDGE_MAX_CODE_LENGTH );
             const Edge& edge          = edgeFifo[ ( ( edgesRead - 1 ) - edgeFifoIndex ) & EDGE_FIFO_MASK ];
 
             triangle[ 0 ]                               = static_cast< Ty >( edge.second );
@@ -72,8 +72,8 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
 
         case IB_EDGE_CACHED:
         {
-			uint32_t    edgeFifoIndex   = input.Decode( EdgeDecoding, EDGE_MAX_CODE_LENGTH );
-			uint32_t    vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t    edgeFifoIndex   = input.Decode( EdgeDecoding, EDGE_MAX_CODE_LENGTH );
+            uint32_t    vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
             const Edge& edge            = edgeFifo[ ( ( edgesRead - 1 ) - edgeFifoIndex ) & EDGE_FIFO_MASK ];
 
             triangle[ 0 ] = static_cast< Ty >( edge.second );
@@ -84,7 +84,7 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         }
         case IB_EDGE_FREE:
         {
-			uint32_t    edgeFifoIndex   = input.Decode( EdgeDecoding, EDGE_MAX_CODE_LENGTH );
+            uint32_t    edgeFifoIndex   = input.Decode( EdgeDecoding, EDGE_MAX_CODE_LENGTH );
             uint32_t    relativeVertex  = input.ReadVInt();
             const Edge& edge            = edgeFifo[ ( ( edgesRead - 1 ) - edgeFifoIndex ) & EDGE_FIFO_MASK ];
 
@@ -117,7 +117,7 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         }
         case IB_NEW_NEW_CACHED:
         {
-			uint32_t vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
 
             triangle[ 2 ]                                         = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertexFifoIndex ) & VERTEX_FIFO_MASK ] );
             vertexFifo[ verticesRead & VERTEX_FIFO_MASK ]         =
@@ -154,8 +154,8 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         }
         case IB_NEW_CACHED_CACHED:
         {
-			uint32_t vertex1FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
-			uint32_t vertex2FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex1FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex2FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
 
             triangle[ 1 ]                                 = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertex1FifoIndex ) & VERTEX_FIFO_MASK ] );
             triangle[ 2 ]                                 = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertex2FifoIndex ) & VERTEX_FIFO_MASK ] );
@@ -172,7 +172,7 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         }
         case IB_NEW_CACHED_FREE:
         {
-			uint32_t vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
             uint32_t relativeVertex  = input.ReadVInt();
 
             triangle[ 1 ]                                         = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertexFifoIndex ) & VERTEX_FIFO_MASK ] );
@@ -192,7 +192,7 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         case IB_NEW_FREE_CACHED:
         {
             uint32_t relativeVertex  = input.ReadVInt();
-			uint32_t vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertexFifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
 
             triangle[ 2 ]                                         = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertexFifoIndex ) & VERTEX_FIFO_MASK ] );
             vertexFifo[ verticesRead & VERTEX_FIFO_MASK ]         =
@@ -231,9 +231,9 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         }
         case IB_CACHED_CACHED_CACHED:
         {
-			uint32_t vertex0FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
-			uint32_t vertex1FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
-			uint32_t vertex2FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex0FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex1FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex2FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
 
             triangle[ 0 ] = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertex0FifoIndex ) & VERTEX_FIFO_MASK ] );
             triangle[ 1 ] = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertex1FifoIndex ) & VERTEX_FIFO_MASK ] );
@@ -246,8 +246,8 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         }
         case IB_CACHED_CACHED_FREE:
         {
-			uint32_t vertex0FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
-			uint32_t vertex1FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex0FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex1FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
             uint32_t relativeVertex2  = input.ReadVInt();
 
             triangle[ 0 ]                                 = static_cast< Ty >( vertexFifo[ ( ( verticesRead - 1 ) - vertex0FifoIndex ) & VERTEX_FIFO_MASK ] );
@@ -266,7 +266,7 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         }
         case IB_CACHED_FREE_FREE:
         {
-			uint32_t vertex0FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
+            uint32_t vertex0FifoIndex = input.Decode( VertexDecoding, VERTEX_MAX_CODE_LENGTH );
             uint32_t relativeVertex1  = input.ReadVInt();
             uint32_t relativeVertex2  = input.ReadVInt();
 
@@ -317,8 +317,8 @@ void DecompressTriangleCodesPrefix( Ty* triangles, uint32_t triangleCount, ReadB
         ++edgesRead;
     }
 
-	// Skip over padding at the end, put in so a short prefix code (1 bit) doesn't cause an overflow
-	input.Read( LONGEST_PREFIX_CODE - 1 );
+    // Skip over padding at the end, put in so a short prefix code (1 bit) doesn't cause an overflow
+    input.Read( LONGEST_PREFIX_CODE - 1 );
 }
 
 // Decompression using triangle codes without entropy encoding (as opposed to individual vertex/edge codes).
