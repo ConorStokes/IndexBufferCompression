@@ -390,7 +390,7 @@ void CompressTriangleCodesPrefixCodes(
 				break;
 			}
 
-			// Populate the edge fifo with the the remaining edges
+			// Populate the edge fifo with the remaining edges
 			// Note - the winding order is important as we'll need to re-produce this on decompression.
 			// The edges are put in as if the found edge is the first edge in the triangle (which it will be when we
 			// reconstruct).
@@ -756,7 +756,7 @@ void CompressTriangleCodes1( const Ty* triangles,
 
             }
 
-            // Populate the edge fifo with the the remaining edges
+            // Populate the edge fifo with the remaining edges
             // Note - the winding order is important as we'll need to re-produce this on decompression.
             // The edges are put in as if the found edge is the first edge in the triangle (which it will be when we
             // reconstruct).
@@ -1131,7 +1131,7 @@ void CompressIndiceCodes1( const Ty* triangles,
 
             ++verticesRead;
 
-            // Populate the edge fifo with the the remaining edges
+            // Populate the edge fifo with the remaining edges
             // Note - the winding order is important as we'll need to re-produce this on decompression.
             // The edges are put in as if the found edge is the first edge in the triangle (which it will be when we
             // reconstruct).
