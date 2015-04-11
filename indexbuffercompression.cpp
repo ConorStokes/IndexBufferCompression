@@ -1121,7 +1121,7 @@ void CompressIndiceCodes1( const Ty* triangles,
 
             OutputVertex( triangle[ freeVertex ], vertexRemap, newVertices, vertexFifo, verticesRead, output );
 
-            // edge is in reverse order to last triangle it occured on (and it will only be a match if this is the case).
+            // edge is in reverse order to last triangle it occurred on (and it will only be a match if this is the case).
             // so put the vertices into the fifo in that order.
             vertexFifo[ verticesRead & VERTEX_FIFO_MASK ] = edge.second;
 

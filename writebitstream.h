@@ -43,7 +43,7 @@ struct PrefixCode
 	uint32_t bitLength;
 };
 
-// Very simple bitstream for writing that will grow to accomodate written bits. 
+// Very simple bitstream for writing that will grow to accommodate written bits. 
 class WriteBitstream
 {
 public:
