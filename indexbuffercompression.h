@@ -35,17 +35,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // It works by outputting a code (along with any required index symbols) per vertex.
 //
-// Parameters: 
+// Parameters:
 //     [in]  triangles      - A typical triangle list index buffer (3 indices to vertices per triangle). 16 bit indices.
 //     [in]  triangle count - The number of triangles to process.
 //     [out] vertexRemap    - This will be populated with re-mappings that map old vertices to new vertex locations (a new ordering),
-//                            where indexing with the old vertex index will get you the new one. Vertices that are unused will 
+//                            where indexing with the old vertex index will get you the new one. Vertices that are unused will
 //                            be mapped to 0xFFFFFFFF.
 //                            You should re-order the vertices and removed unused ones based on the vertex remap, instead of storing
-//                            the remap. 
+//                            the remap.
 //                            It should be allocated as a with at least vertexCount entries.
 //     [in] vertexCount     - The number of vertices in the mesh. This should be less than 0xFFFFFFFF/2^32 - 1.
-//     [in] format          - The compression format to use for encoding - note the format will be encoded with the compressed data so the decompressor can select the correct algorithm.            
+//     [in] format          - The compression format to use for encoding - note the format will be encoded with the compressed data so the decompressor can select the correct algorithm.
 //     [in] output          - The stream that the compressed data will be written to. Note that we will not flush/finish the stream
 //                            in case something else is going to be written after, so WriteBitstream::Finish will need to be called after this.
 void CompressIndexBuffer( const uint16_t* triangles, uint32_t triangleCount, uint32_t* vertexRemap, uint32_t vertexCount, IndexBufferCompressionFormat format, WriteBitstream& output );

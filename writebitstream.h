@@ -34,7 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define WBS_INLINE __forceinline
 #else
 #define WBS_INLINE inline
-#endif 
+#endif
 
 // Used for prefix coding tables.
 struct PrefixCode
@@ -43,12 +43,12 @@ struct PrefixCode
 	uint32_t bitLength;
 };
 
-// Very simple bitstream for writing that will grow to accomodate written bits. 
+// Very simple bitstream for writing that will grow to accommodate written bits.
 class WriteBitstream
 {
 public:
 
-    // Construct the bit stream with an initial buffer capacity - should be a multiple of 8 and > 0 
+    // Construct the bit stream with an initial buffer capacity - should be a multiple of 8 and > 0
     WriteBitstream( size_t initialBufferCapacity = 16 )
     {
         m_bufferCursor =
@@ -73,7 +73,7 @@ public:
     // Write a V int to the stream.
     void WriteVInt( uint32_t value );
 
-    // Get the size in bytes 
+    // Get the size in bytes
     size_t ByteSize() const { return ( m_size + 7 ) >> 3; }
 
     // Finish writing by flushing the buffer.
@@ -91,7 +91,7 @@ private:
     // If we need to grow the buffer.
     void GrowBuffer();
 
-    // Not copyable 
+    // Not copyable
     WriteBitstream( const WriteBitstream& );
 
     // Not assignable

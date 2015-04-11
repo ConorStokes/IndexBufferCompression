@@ -2,7 +2,7 @@
 
 This is a small proof of concept for compressing and decompressing index buffer triangle lists. It's designed to maintain the order of the triangle list and perform best with a triangle list that has been vertex cache post-transform optimised (a pre-transform cache optimisation is done as part of the compression).
 
-It's also designed to be relatively lightweight, with a decompression throughput in the tens of millions of triangles per core.  It does not achieve state of the art levels of compression levels (which can be less than a bit per triangle, as well as providing good chances for vertex prediction), but it does maintain ordering of triangles and support arbitrary topologies. 
+It's also designed to be relatively lightweight, with a decompression throughput in the tens of millions of triangles per core.  It does not achieve state of the art levels of compression levels (which can be less than a bit per triangle, as well as providing good chances for vertex prediction), but it does maintain ordering of triangles and support arbitrary topologies.
 
 There are some cases where the vertices within a triangle are re-ordered, but the general winding direction is maintained.
 
@@ -19,13 +19,13 @@ The basic goals were:
 
 * Make it fast, especially for decompression, without the need to maintain large extra data structures, like winged edge.
 
-* Make it simple enough to be easily understandable. 
+* Make it simple enough to be easily understandable.
 
 The vertex cache optimisation means that there will be quite a few vertices and edges shared between the next triangle in the list and the previous. We exploit this by maintaining two relatively small fixed size FIFOs, an edge FIFO and a vertex FIFO (not unlike the vertex cache itself, except we store recent indices).
 
-The compression relies on 4 codes: 
+The compression relies on 4 codes:
 
-1. A _new vertex_ code, for vertices that have not yet been seen. 
+1. A _new vertex_ code, for vertices that have not yet been seen.
 
 2. A _cached edge_ code, for edges that have been seen recently. This code is followed by a relative index back into the edge FIFO.
 
@@ -50,8 +50,8 @@ Performance wise, with the code posted here, the Armadillo compresses in 18.5 mi
 
 I've added a second more efficient (in terms of both speed and size) compression algorithm (CompressIndexBuffer2 and DecompressIndexBuffer2), as well as some changes upstream from Branimir Karadžić, who made some compiler compatibility fixes and added 16bit indice support. This uses a code per triangle instead of multiple codes for different cases.
 
-For details of the original algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/). For details of the second algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/). 
+For details of the original algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/). For details of the second algorithm, please see this [blog post](http://conorstokes.github.io/graphics/2014/09/28/vertex-cache-optimised-index-buffer-compression/).
 
 ## Update 2!
 
-There were previously some bug fixes for 64bit mode, but I have now added another compression option that adds prefix/huffman code based entropy encoding, as well as some bitstream I/O optimisations. 
+There were previously some bug fixes for 64bit mode, but I have now added another compression option that adds prefix/huffman code based entropy encoding, as well as some bitstream I/O optimisations.
