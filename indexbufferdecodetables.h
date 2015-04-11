@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-// Prefix code decoding table used for triangle codes 
+// Prefix code decoding table used for triangle codes
 static const PrefixCodeTableEntry TriangleDecoding[] =
 {
 	{ 0, 1 },

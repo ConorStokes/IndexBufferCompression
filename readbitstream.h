@@ -37,7 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define RBS_INLINE inline
 
-#endif 
+#endif
 
 // Detect if our processor is x86/x64 (supports unaligned reads and is little endian)
 // Note that other processors could be added
@@ -49,7 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    _M_I386 || \
    (defined(__DMC__) && defined(_M_IX86)) || \
    (defined(_MSC_VER) && _M_IX86) || \
-   defined(__i386__) 
+   defined(__i386__)
 
 #define RBS_LITTLE_ENDIAN_UNALIGNED
 
@@ -79,16 +79,16 @@ public:
     // Get the buffer size of this in bytes
     size_t Size() const { return m_bufferSize; }
 
-    // Read a variable encoded int (use MSB of each byte to signal another byte 
+    // Read a variable encoded int (use MSB of each byte to signal another byte
     uint32_t ReadVInt();
 
-    // Decode prefix code using table (least significant bits lookup). 
+    // Decode prefix code using table (least significant bits lookup).
     // Note, maximum code length should be 32 or less (practically much lower, as you need a table to match).
     // Also note, this uses 4 byte reads/only partially refills the bit-buffer.
     uint32_t Decode( const PrefixCodeTableEntry* table, const uint32_t maximumCodeLength );
 
 private:
-    
+
     uint64_t m_bitBuffer;
 
     const uint8_t* m_buffer;
@@ -206,7 +206,7 @@ RBS_INLINE uint32_t ReadBitstream::Read( uint32_t bitCount )
         m_bitsLeft -= bitCount;
     }
 
-    return result; 
+    return result;
 }
 
 
@@ -223,7 +223,7 @@ RBS_INLINE uint32_t ReadBitstream::ReadVInt()
         result       |= ( readByte & 0x7F ) << bitsToShift;
         bitsToShift  += 7;
 
-    } 
+    }
     while ( readByte & 0x80 );
 
     return result;

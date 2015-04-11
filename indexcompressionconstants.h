@@ -36,7 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ICC_INLINE inline
 
-#endif 
+#endif
 
 // Constant fifo and code sizes.
 const uint32_t VERTEX_FIFO_SIZE      = 32;
@@ -75,11 +75,11 @@ enum IndexBufferCodes
     // Represents 2 vertices on an edge in the edge fifo, which will be used as the first 2 vertices of the
     // triangle.
     IB_CACHED_EDGE   = 1,
-    
+
     // Represents a vertex that has been seen recently and is still in the vertex fifo.
     IB_CACHED_VERTEX = 2,
 
-    // Represents a vertex that has been seen 
+    // Represents a vertex that has been seen
     IB_FREE_VERTEX   = 3
 };
 
@@ -106,4 +106,4 @@ enum IndexBufferTriangleCodes
     IB_EDGE_1_NEW = 15
 };
 
-#endif 
+#endif

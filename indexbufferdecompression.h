@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Compress an index buffer, writing the results out to a bitstream and providing a vertex remapping (which will be in pre-transform cache optimised
 // order.
-// Parameters: 
+// Parameters:
 //     [out] triangles      - Triangle list index buffer (3 indices to vertices per triangle), output from the decompression - 16bit indices
 //     [in]  triangle count - The number of triangles to decompress.
 //     [in]  input          - The bit stream that the compressed data will be read from.
